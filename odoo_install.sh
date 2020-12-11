@@ -57,8 +57,9 @@ sudo apt-get install software-properties-common
 # universe package is for Ubuntu 18.x
 sudo add-apt-repository universe
 # libpng12-0 dependency for wkhtmltopdf
-sudo add-apt-repository "deb http://mirrors.kernel.org/ubuntu/ xenial main"
-sudo apt-get update
+# add-apt-repository can install add-apt-repository Ubuntu 18.x
+# sudo add-apt-repository "deb http://mirrors.kernel.org/ubuntu/ xenial main"
+sudo add-apt-repository "deb http://mirrors.kernel.org/ubuntu/ focal main" #20.04
 sudo apt-get upgrade -y
 
 #--------------------------------------------------
@@ -77,31 +78,37 @@ echo -e "\n--- Installing Python 3 + pip3 --"
 sudo apt-get install python3 python3-pip -y
 
 echo -e "\n---- Install tool packages ----"
-sudo apt-get install wget git bzr python-pip gdebi-core -y
+sudo apt-get install wget git bzr gdebi-core -y
+
 
 echo -e "\n---- Install python packages ----"
+
+sudo apt install -y libjpeg-dev zlib1g-dev libsasl2-dev  libldap2-dev libssl-dev
+sudo apt-get -y install libpq-dev  libxml2-dev libxslt-dev python3-pyldap   python3-dev 
+sudo pip3 install psycopg2
+
 #sudo apt-get install python-pypdf2 python-dateutil python-feedparser python-ldap python-libxslt1 python-lxml python-mako python-openid python-psycopg2 python-pybabel python-pychart python-pydot python-pyparsing python-reportlab python-simplejson python-tz python-vatnumber python-vobject python-webdav python-werkzeug python-xlwt python-yaml python-zsi python-docutils python-psutil python-mock python-unittest2 python-jinja2 python-pypdf python-decorator python-requests python-passlib python-pil -y
 #parse all package to verify if there is installation condidate then install it
-for packages in python-pypdf2 python-dateutil python-werkzeug python-html2text python-feedparser python-ldap python-libxslt1 python-lxml python-mako python-openid python-psycopg2 python-pybabel python-pychart python-pydot python-pyparsing python-reportlab python-simplejson python-tz python-vatnumber python-vobject python-webdav python3-werkzeug python-xlwt python-yaml python-zsi python-docutils python-psutil python-mock python-unittest2 python-jinja2 python-pypdf python-decorator python-requests python-passlib python-pil ;
+#will be installed with pip
+#python-decorator  python-pypdf2  python-psutil python-feedparser python-html2text  python-docutils  python-lxml  python-mako python-reportlab python-requests  python-vobject python-openid  python-pyparsing python-pydot  python-mock python-jinja2 python-xlwt
+for packages in python-pypdf python-werkzeug python-ldap python-libxslt1 python-psycopg2 python-pybabel python-pychart python-simplejson python-tz python-vatnumber python-webdav python3-werkzeug python-yaml python-zsi python-unittest2 python-passlib python-pil ;
 do 
     if apt-cache madison $packages;
     then sudo apt-get install -y $packages
     fi
 done
-sudo pip3 install pypdf2 Babel passlib Werkzeug decorator python-dateutil pyyaml psycopg2 psutil html2text docutils lxml pillow reportlab ninja2 requests gdata XlsxWriter vobject python-openid pyparsing pydot mock mako Jinja2 ebaysdk feedparser xlwt psycogreen suds-jurko pytz pyusb greenlet xlrd 
+sudo pip3 install pypdf2 Babel passlib Werkzeug decorator python-dateutil pyyaml psycopg2-binary psutil html2text docutils lxml pillow reportlab ninja2 requests gdata XlsxWriter vobject python-openid pyparsing pydot mock mako Jinja2 ebaysdk feedparser xlwt psycogreen suds-jurko pytz pyusb greenlet xlrd 
+
+sudo -H pip3 install  --ignore-installed -r https://github.com/odoo/odoo/raw/${OE_VERSION}/requirements.txt
+
 
 echo -e "\n---- Install python packages/requirements ----"
-sudo pip3 install -r https://github.com/odoo/odoo/raw/${OE_VERSION}/requirements.txt
+sudo pip3 install PyPDF2==1.26.0 
+sudo pip3 install vobject qrcode 
 
-sudo pip3 install PyPDF2==1.26.0 pyldap
-sudo pip3 install vobject qrcode
-# not installed with pip3
-sudo apt-get -y install libxml2-dev libxslt-dev python3-pyldap libsasl2-dev python3-dev libldap2-dev libssl-dev 
-sudo -H pip3 install  --ignore-installed -r https://github.com/odoo/odoo/raw/${OE_VERSION}/requirements.txt
- 
 
-echo -e "\n--- Install other required packages"
-sudo apt-get install node-clean-css -y
+echo -e "\n--- Install other required packages
+"sudo apt-get install node-clean-css -y
 sudo apt-get install node-less -y
 sudo apt-get install python-gevent -y
 
@@ -167,6 +174,11 @@ if [ $IS_ENTERPRISE = "True" ]; then
     done
 
     echo -e "\n---- Added Enterprise code under $OE_HOME/enterprise/addons ----"
+    echo -e "\n---- Installing Enterprise specific libraries ----"
+    sudo pip3 install num2words ofxparse dbfread ebaysdk firebase_admin pyOpenSSL
+    sudo npm install -g less
+    sudo npm install -g less-plugin-clean-css
+
 fi
 
 echo -e "\n---- Installing Enterprise specific libraries it can be used by some other themes ----"
@@ -187,13 +199,13 @@ sudo chown -R $OE_USER:$OE_USER $OE_HOME/*
 
 echo -e "* Create server config file"
 sudo touch /etc/${OE_CONFIG}.conf 
+ 
+
 sudo su root -c "printf '[options] \n; This is the password that allows database operations:\n' >> /etc/${OE_CONFIG}.conf"
 if [ $GENERATE_RANDOM_PASSWORD = "True" ]; then
     echo -e "* Generating random admin password"
     OE_SUPERADMIN=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
 fi
-
-sudo su root -c "printf '[options] \n; This is the password that allows database operations:\n' >> /etc/${OE_CONFIG}.conf"
 sudo su root -c "printf 'admin_passwd = ${OE_SUPERADMIN}\n' >> /etc/${OE_CONFIG}.conf"
 if [ $OE_VERSION >= "12.0" ];then
     sudo su root -c "printf 'http_port = ${OE_PORT}\n' >> /etc/${OE_CONFIG}.conf"
@@ -201,6 +213,7 @@ else
     sudo su root -c "printf 'xmlrpc_port = ${OE_PORT}\n' >> /etc/${OE_CONFIG}.conf"
 fi
 sudo su root -c "printf 'logfile = /var/log/${OE_USER}/${OE_CONFIG}.log\n' >> /etc/${OE_CONFIG}.conf"
+
 if [ $IS_ENTERPRISE = "True" ]; then
     sudo su root -c "printf 'addons_path=${OE_HOME}/enterprise/addons,${OE_HOME_EXT}/addons\n' >> /etc/${OE_CONFIG}.conf"
 else
@@ -211,7 +224,7 @@ sudo chmod 640 /etc/${OE_CONFIG}.conf
 
 echo -e "* Create startup file"
 sudo su root -c "echo '#!/bin/sh' >> $OE_HOME_EXT/start.sh"
-sudo su root -c "echo 'sudo -u $OE_USER $OE_HOME_EXT/odoo-server --config=/etc/${OE_CONFIG}.conf' >> $OE_HOME_EXT/start.sh"
+sudo su root -c "echo 'sudo -u $OE_USER $OE_HOME_EXT/odoo-bin --config=/etc/${OE_CONFIG}.conf' >> $OE_HOME_EXT/start.sh"
 sudo chmod 755 $OE_HOME_EXT/start.sh
 
 #--------------------------------------------------
@@ -255,8 +268,9 @@ return 1
 case "\${1}" in
 start)
 echo -n "Starting \${DESC}: "
-start-stop-daemon --start --quiet --pidfile \$PIDFILE --chuid \$USER --background --make-pidfile --exec \$DAEMON -- $DAEMON_OPTS
-echo "\${ }."
+start-stop-daemon --start --quiet --pidfile \$PIDFILE \
+--chuid \$USER --background --make-pidfile --exec \$DAEMON -- $DAEMON_OPTS
+echo "\${NAME}."
 ;;
 stop)
 echo -n "Stopping \${DESC}: "
@@ -293,7 +307,7 @@ sudo update-rc.d $OE_CONFIG defaults
 
 # Log rotate
 echo -e "configuration file logrotate"
-sudo cat <<EOF >/etc/logrotate.d/odoo
+sudo cat <<EOF > ~/odoo-lograte
 /var/log/odoo/odoo-server.log {
     daily
     missingok
@@ -312,12 +326,14 @@ EOF
 #--------------------------------------------------
 if [ $INSTALL_NGINX = "True" ]; then
   echo -e "\n---- Permission to restart nginx for letsencrypt ----"
-  cat <<EOF >OE_USER
+  cat <<EOF > OE_USER
 $OE_USER ALL = NOPASSWD: /usr/sbin/service nginx reload 
 EOF
-  echo -e "\n---- Installing and setting up Nginx ----"
-  sudo apt install nginx -y
-  cat <<EOF > ~/odoo
+
+echo -e "\n---- Installing and setting up Nginx ----"
+sudo apt install nginx -y
+
+cat <<EOF > ~/odoo
 # # http -> https
 # server {
 #   listen 80;
@@ -326,10 +342,10 @@ EOF
 # }       
 
 server {
-  #for https comment port 80 and uncomment lines bellow until server name
-  # listen 80;
-  listen 443 ssl;
   server_name $WEBSITE_NAME;
+  #for https comment port 80 and uncomment lines bellow until server name
+  listen 80;
+  # listen 443 ssl;
   # #SSL parameters
   # ssl on;
   # ssl_certificate /odoo/.local/share/Odoo/letsencrypt/$WEBSITE_NAME.crt;
@@ -398,6 +414,7 @@ server {
 EOF
 
   sudo mv ~/odoo /etc/nginx/sites-available/
+  sudo mv ~/odoo-lograte /etc/logrotate.d/odoo
   sudo ln -s /etc/nginx/sites-available/odoo /etc/nginx/sites-enabled/odoo
   sudo rm /etc/nginx/sites-enabled/default
   sudo service nginx reload
